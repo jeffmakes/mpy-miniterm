@@ -663,6 +663,11 @@ class Miniterm(object):
             self.dump_port_settings()
         elif c == '\x07':         # CTRL+G - Synchronise code directory contents to MicroPython filesystem
             sys.stderr.write('\n--- Downloading MicroPython code ---\n')
+            sys.stderr.write('\n--- Closing port ---\n')
+            self.serial.close()
+            sys.stderr.write('\n--- Running mpy-sync ---\n')
+            
+            
         else:
             sys.stderr.write('--- unknown menu character {} --\n'.format(key_description(c)))
 
@@ -718,7 +723,7 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Miniterm - A simple terminal program for the serial port.")
+        description="mpy-miniterm - A simple terminal program for interacting with, and downloading files to, MicroPython devices over a serial port.")
 
     parser.add_argument(
         "port",
@@ -732,6 +737,12 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
         type=int,
         help="set baud rate, default: %(default)s",
         default=default_baudrate)
+
+    parser.add_argument(
+        "syncdir",
+        nargs='?',
+        help="folder to sync to MicroPython filesytem, default: %(default)s",
+        default=None)
 
     group = parser.add_argument_group("port settings")
 
