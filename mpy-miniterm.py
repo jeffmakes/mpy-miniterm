@@ -661,6 +661,8 @@ class Miniterm(object):
         elif c in 'rR':                         # R -> change hardware flow control
             self.serial.rtscts = (c == 'R')
             self.dump_port_settings()
+        elif c == '\x07':         # CTRL+G - Synchronise code directory contents to MicroPython filesystem
+            sys.stderr.write('\n--- Downloading MicroPython code ---\n')
         else:
             sys.stderr.write('--- unknown menu character {} --\n'.format(key_description(c)))
 
@@ -679,6 +681,7 @@ class Miniterm(object):
 ---    {upload:7} Upload file (prompt will be shown)
 ---    {repr:7} encoding
 ---    {filter:7} edit filters
+---    {sync:7} syncronise code directory to MicroPython filesystem
 --- Toggles:
 ---    {rts:7} RTS   {dtr:7} DTR   {brk:7} BREAK
 ---    {echo:7} echo  {eol:7} EOL
@@ -702,6 +705,7 @@ class Miniterm(object):
            upload=key_description('\x15'),
            repr=key_description('\x01'),
            filter=key_description('\x06'),
+           sync=key_description('\x07'),
            eol=key_description('\x0c'))
 
 
