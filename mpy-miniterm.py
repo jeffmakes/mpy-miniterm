@@ -788,7 +788,7 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
     group = parser.add_argument_group("MicroPython options")
 
     group.add_argument(
-        "--syncdir",
+        "--sync-dir",
         help="folder to sync to MicroPython filesytem",
         default=None)
 
@@ -864,7 +864,7 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
 
     args = parser.parse_args()
 
-    syncdir = args.syncdir
+    syncdir = args.sync_dir
 
     if args.menu_char == args.exit_char:
         parser.error('--exit-char can not be the same as --menu-char')
