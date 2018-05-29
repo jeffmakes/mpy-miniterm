@@ -11,6 +11,7 @@ import codecs
 import os
 import sys
 import threading
+import subprocess
 
 import serial
 from serial.tools.list_ports import comports
@@ -344,7 +345,7 @@ class Miniterm(object):
     Handle special keys from the console to show menu etc.
     """
 
-    def __init__(self, serial_instance, echo=False, eol='crlf', filters=()):
+    def __init__(self, serial_instance, echo=False, eol='crlf', filters=(), syncdir=None):
         self.console = Console()
         self.serial = serial_instance
         self.echo = echo
@@ -361,6 +362,7 @@ class Miniterm(object):
         self.receiver_thread = None
         self.rx_decoder = None
         self.tx_decoder = None
+        self.syncdir = syncdir
 
     def _start_reader(self):
         """Start reader thread"""
@@ -662,12 +664,18 @@ class Miniterm(object):
             self.serial.rtscts = (c == 'R')
             self.dump_port_settings()
         elif c == '\x07':         # CTRL+G - Synchronise code directory contents to MicroPython filesystem
-            sys.stderr.write('\n--- Downloading MicroPython code ---\n')
-            sys.stderr.write('\n--- Closing port ---\n')
-            self.serial.close()
-            sys.stderr.write('\n--- Running mpy-sync ---\n')
-            
-            
+            if self.syncdir == None:
+                print("Please run mpy-miniterm with syncdir specified")
+            else:            
+                sys.stderr.write('\n--- Downloading MicroPython code ---\n')
+                sys.stderr.write('\n--- Closing port ---\n')
+                self.serial.close()
+                sys.stderr.write('\n--- Running mpy-sync ---\n')
+                try:
+                    subprocess.call("mpy-sync" + " --port {} --baud {} --reset {}".format(self.serial.port, self.serial.baudrate, self.syncdir), shell=True)
+                except OSError as e:
+                    print("Execution failed:", e)
+                
         else:
             sys.stderr.write('--- unknown menu character {} --\n'.format(key_description(c)))
 
@@ -738,12 +746,6 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
         help="set baud rate, default: %(default)s",
         default=default_baudrate)
 
-    parser.add_argument(
-        "syncdir",
-        nargs='?',
-        help="folder to sync to MicroPython filesytem, default: %(default)s",
-        default=None)
-
     group = parser.add_argument_group("port settings")
 
     group.add_argument(
@@ -782,6 +784,18 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
         action="store_true",
         help="ask again for port when open fails",
         default=False)
+
+    group = parser.add_argument_group("MicroPython options")
+
+    group.add_argument(
+        "--syncdir",
+        help="folder to sync to MicroPython filesytem",
+        default=None)
+
+    group.add_argument(
+        "--mpy-sync",
+        help="location of mpy-sync tool (provided by mpy-utils)",
+        default='mpy-utils')
 
     group = parser.add_argument_group("data handling")
 
@@ -850,6 +864,8 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
 
     args = parser.parse_args()
 
+    syncdir = args.syncdir
+
     if args.menu_char == args.exit_char:
         parser.error('--exit-char can not be the same as --menu-char')
 
@@ -914,7 +930,8 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
         serial_instance,
         echo=args.echo,
         eol=args.eol.lower(),
-        filters=filters)
+        filters=filters,
+        syncdir=syncdir)
     miniterm.exit_character = unichr(args.exit_char)
     miniterm.menu_character = unichr(args.menu_char)
     miniterm.raw = args.raw
