@@ -345,7 +345,7 @@ class Miniterm(object):
     Handle special keys from the console to show menu etc.
     """
 
-    def __init__(self, serial_instance, echo=False, eol='crlf', filters=(), syncdir=None):
+    def __init__(self, serial_instance, echo=False, eol='crlf', filters=(), syncdir=None, mpysync=None):
         self.console = Console()
         self.serial = serial_instance
         self.echo = echo
@@ -363,6 +363,7 @@ class Miniterm(object):
         self.rx_decoder = None
         self.tx_decoder = None
         self.syncdir = syncdir
+        self.mpysync = mpysync
 
     def _start_reader(self):
         """Start reader thread"""
@@ -668,13 +669,17 @@ class Miniterm(object):
                 print("Please run mpy-miniterm with syncdir specified")
             else:            
                 sys.stderr.write('\n--- Downloading MicroPython code ---\n')
-                sys.stderr.write('\n--- Closing port ---\n')
+                sys.stderr.write('--- Closing port ---\n')
+                self._stop_reader()
                 self.serial.close()
-                sys.stderr.write('\n--- Running mpy-sync ---\n')
+                sys.stderr.write('--- Running mpy-sync ---\n')
                 try:
-                    subprocess.call("mpy-sync" + " --port {} --baud {} --reset {}".format(self.serial.port, self.serial.baudrate, self.syncdir), shell=True)
+                    subprocess.call(self.mpysync + " --port {} --baud {} --reset {}".format(self.serial.port, self.serial.baudrate, self.syncdir), shell=True)
                 except OSError as e:
                     print("Execution failed:", e)
+                sys.stderr.write('--- Re-opening port ---\n')
+                self.serial.open()
+                self._start_reader()
                 
         else:
             sys.stderr.write('--- unknown menu character {} --\n'.format(key_description(c)))
@@ -795,7 +800,7 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
     group.add_argument(
         "--mpy-sync",
         help="location of mpy-sync tool (provided by mpy-utils)",
-        default='mpy-utils')
+        default='mpy-sync')
 
     group = parser.add_argument_group("data handling")
 
@@ -865,6 +870,7 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
     args = parser.parse_args()
 
     syncdir = args.sync_dir
+    mpysync = args.mpy_sync
 
     if args.menu_char == args.exit_char:
         parser.error('--exit-char can not be the same as --menu-char')
@@ -931,7 +937,8 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
         echo=args.echo,
         eol=args.eol.lower(),
         filters=filters,
-        syncdir=syncdir)
+        syncdir=syncdir,
+        mpysync=mpysync)
     miniterm.exit_character = unichr(args.exit_char)
     miniterm.menu_character = unichr(args.menu_char)
     miniterm.raw = args.raw
