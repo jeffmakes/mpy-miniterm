@@ -688,7 +688,7 @@ class Miniterm(object):
         """return the help text"""
         # help text, starts with blank line!
         return """
---- pySerial ({version}) - miniterm - help
+--- mpy-miniterm - help
 ---
 --- {exit:8} Exit program
 --- {menu:8} Menu escape key, followed by:
