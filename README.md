@@ -1,5 +1,4 @@
 # mpy-miniterm v0.1
-==============
 
 Tool for seamless serial debug and file synchronisation with MicroPython devices via the serial REPL.
 
