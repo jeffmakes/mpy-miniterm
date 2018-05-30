@@ -1,7 +1,7 @@
 # mpy-miniterm v0.1
 ==============
 
-Serial terminal and code download tool for Micropython
+Tool for seamless serial debug and file synchronisation with MicroPython devices via the serial REPL.
 
 mpy-miniterm allows seamless transitions between serial debugging and file download via the MicroPython REPL
 
