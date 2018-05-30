@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 #
-# Very simple serial terminal
+# Very simple serial terminal, modified for downloading code onto MicroPython devices
 #
-# This file is part of pySerial. https://github.com/pyserial/pyserial
+# Adapted from miniterm, part of pySerial. https://github.com/pyserial/pyserial
 # (C)2002-2015 Chris Liechti <cliechti@gmx.net>
+# MicroPython additions by Jeff Gough <mpy@jeffreygough.com>
 #
 # SPDX-License-Identifier:    BSD-3-Clause
 
