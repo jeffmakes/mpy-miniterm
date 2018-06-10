@@ -22,7 +22,7 @@ import serial
 from serial.tools.list_ports import comports
 from serial.tools import hexlify_codec
 
-from  replcontrol import ReplControl
+import replcontrol
 
 # pylint: disable=wrong-import-order,wrong-import-position
 
@@ -376,7 +376,8 @@ class Miniterm(object):
         self.tx_decoder = None
         self.syncdir = syncdir
         self.delete = delete
-        self.repl_control = ReplControl(port=serial_instance, debug=False)
+        self.repl_control = replcontrol.ReplControl(debug=False)
+        self.repl_control.port = serial_instance
 
 
     def _start_reader(self):
