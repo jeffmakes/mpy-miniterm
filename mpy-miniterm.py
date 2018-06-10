@@ -18,6 +18,8 @@ import serial
 from serial.tools.list_ports import comports
 from serial.tools import hexlify_codec
 
+from  replcontrol import ReplControl
+
 # pylint: disable=wrong-import-order,wrong-import-position
 
 codecs.register(lambda c: hexlify_codec.getregentry() if c == 'hexlify' else None)
@@ -339,7 +341,7 @@ class Miniterm(object):
     Handle special keys from the console to show menu etc.
     """
 
-    def __init__(self, serial_instance, echo=False, eol='crlf', filters=(), syncdir=None, mpysync=None):
+    def __init__(self, serial_instance, echo=False, eol='crlf', filters=(), syncdir=None):
         self.console = Console()
         self.serial = serial_instance
         self.echo = echo
@@ -357,7 +359,8 @@ class Miniterm(object):
         self.rx_decoder = None
         self.tx_decoder = None
         self.syncdir = syncdir
-        self.mpysync = mpysync
+        self.repl_control = ReplControl(port=serial_instance, debug=True)
+
 
     def _start_reader(self):
         """Start reader thread"""
@@ -583,22 +586,67 @@ class Miniterm(object):
             if self.syncdir == None:
                 print("Please run mpy-miniterm with syncdir specified")
             else:            
-                sys.stderr.write('\n--- Downloading MicroPython code ---\n')
-                sys.stderr.write('--- Closing port ---\n')
-                self._stop_reader()
-                self.serial.close()
-                sys.stderr.write('--- Running mpy-sync ---\n')
-                try:
-                    subprocess.call(self.mpysync + " --port {} --baud {} --reset {}".format(self.serial.port, self.serial.baudrate, self.syncdir), shell=True)
-                except OSError as e:
-                    print("Execution failed:", e)
-                sys.stderr.write('--- Re-opening port ---\n')
-                self.serial.open()
-                self._start_reader()
+                self.mpy_sync()
                 
         else:
             sys.stderr.write('--- unknown menu character {} --\n'.format(key_description(c)))
 
+    def mpy_sync(self):
+        helper_fns = """import uhashlib as hashlib
+import ubinascii
+def sha256(fn):
+    hash_sha256 = hashlib.sha256()
+    with open(fn, 'rb') as f:
+        while True:
+            c = f.read(512)
+            if not c:
+                break
+            hash_sha256.update(c)
+        return ubinascii.hexlify(hash_sha256.digest())"""
+# def fileExists(fn):
+#     try:
+#         os.stat(fn)
+#         return True;
+#     except OSError:
+#         return False"""
+
+        sys.stderr.write('\n--- Synchronising MicroPython code ---\n')
+        self._stop_reader()
+        self.repl_control.initialize()
+        self.repl_control.command('import os')
+        self.repl_control.command(helper_fns)
+
+        self.mpy_sync_files([ (f, os.path.split(f)[1]) for f in [self.syncdir]] )
+        self.serial.write(b"\x03\x02") # exit raw mode
+        self._start_reader()
+        
+    def mpy_sync_files(self, files):
+        for source, dest in files:
+            if os.path.isdir(source):
+                self.repl_control.statement('os.mkdir', dest)
+                self.mpy_sync_files([ (os.path.join(source, x), os.path.join(dest, x)) for x in os.listdir(source) if not x.startswith(".") ])
+            else:
+                self.mpy_copy_file(source, dest)
+
+    def mpy_copy_file(self, source, dest):
+            print("copying %s => %s" % (repr(source), repr(dest)))
+            return
+            fh = open(source, "rb")
+            rfh = self.repl_control.variable('open', '/'+dest, "wb")
+            while True:
+                s = fh.read(50)
+                if len(s) == 0: break
+                rfh.method('write', s)
+                time.sleep(args.delay/1000.0)
+            rfh.method('flush')
+            rfh.method('close')
+
+        # for f in files:
+        #     hash = repl_control.function('sha256', f)
+        #     print (hash)
+
+
+ 
     def upload_file(self):
         """Ask user for filenname and send its contents"""
         sys.stderr.write('\n--- File to upload: ')
@@ -851,11 +899,6 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
         help="folder to sync to MicroPython filesytem",
         default=None)
 
-    group.add_argument(
-        "--mpy-sync",
-        help="location of mpy-sync tool (provided by mpy-utils)",
-        default='mpy-sync')
-
     group = parser.add_argument_group("data handling")
 
     group.add_argument(
@@ -924,7 +967,6 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
     args = parser.parse_args()
 
     syncdir = args.sync_dir
-    mpysync = args.mpy_sync
 
     if args.menu_char == args.exit_char:
         parser.error('--exit-char can not be the same as --menu-char')
@@ -994,8 +1036,7 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
         echo=args.echo,
         eol=args.eol.lower(),
         filters=filters,
-        syncdir=syncdir,
-        mpysync=mpysync)
+        syncdir=syncdir)
     miniterm.exit_character = unichr(args.exit_char)
     miniterm.menu_character = unichr(args.menu_char)
     miniterm.raw = args.raw
