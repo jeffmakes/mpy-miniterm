@@ -15,6 +15,7 @@ import threading
 import subprocess
 import hashlib
 import binascii
+import time
 
 import serial
 from serial.tools.list_ports import comports
@@ -373,7 +374,7 @@ class Miniterm(object):
         self.rx_decoder = None
         self.tx_decoder = None
         self.syncdir = syncdir
-        self.repl_control = ReplControl(port=serial_instance, debug=True)
+        self.repl_control = ReplControl(port=serial_instance, debug=False)
 
 
     def _start_reader(self):
@@ -647,18 +648,21 @@ def fileExists(fn):
                 self.mpy_copy_file(source, dest)
 
     def mpy_copy_file(self, source, dest):
-            print("syncing %s => %s" % (repr(source), repr(dest)))
-            print("Hashes: src {} dst {}".format( sha256(source),  self.repl_control.function('sha256', dest)))
-            return
-            fh = open(source, "rb")
-            rfh = self.repl_control.variable('open', '/'+dest, "wb")
-            while True:
-                s = fh.read(50)
-                if len(s) == 0: break
-                rfh.method('write', s)
-                time.sleep(args.delay/1000.0)
-            rfh.method('flush')
-            rfh.method('close')
+
+            if sha256(source) == self.repl_control.function('sha256', dest):
+                print("no change %s => %s" % (repr(source), repr(dest)))                
+                return
+            else:
+                print("copying   %s => %s" % (repr(source), repr(dest)))                
+                fh = open(source, "rb")
+                rfh = self.repl_control.variable('open', '/'+dest, "wb")
+                while True:
+                    s = fh.read(50)
+                    if len(s) == 0: break
+                    rfh.method('write', s)
+                    time.sleep(self.repl_control.delay/1000.0)
+                rfh.method('flush')
+                rfh.method('close')
 
         # for f in files:
         #     hash = repl_control.function('sha256', f)
