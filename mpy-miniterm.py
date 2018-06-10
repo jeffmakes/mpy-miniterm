@@ -16,6 +16,7 @@ import subprocess
 import hashlib
 import binascii
 import time
+import stat
 
 import serial
 from serial.tools.list_ports import comports
@@ -356,7 +357,7 @@ class Miniterm(object):
     Handle special keys from the console to show menu etc.
     """
 
-    def __init__(self, serial_instance, echo=False, eol='crlf', filters=(), syncdir=None):
+    def __init__(self, serial_instance, echo=False, eol='crlf', filters=(), syncdir=None, delete=False):
         self.console = Console()
         self.serial = serial_instance
         self.echo = echo
@@ -374,6 +375,7 @@ class Miniterm(object):
         self.rx_decoder = None
         self.tx_decoder = None
         self.syncdir = syncdir
+        self.delete = delete
         self.repl_control = ReplControl(port=serial_instance, debug=False)
 
 
@@ -636,6 +638,8 @@ def fileExists(fn):
         self.repl_control.command(helper_fns)
 
         self.mpy_sync_files([ (f, os.path.split(f)[1]) for f in [self.syncdir]] )
+        if self.delete:
+            self.mpy_delete_strays(self.syncdir, '')
         self.serial.write(b"\x03\x02") # exit raw mode
         self._start_reader()
         
@@ -648,7 +652,6 @@ def fileExists(fn):
                 self.mpy_copy_file(source, dest)
 
     def mpy_copy_file(self, source, dest):
-
             if sha256(source) == self.repl_control.function('sha256', dest):
                 print("no change %s => %s" % (repr(source), repr(dest)))                
                 return
@@ -664,12 +667,21 @@ def fileExists(fn):
                 rfh.method('flush')
                 rfh.method('close')
 
-        # for f in files:
-        #     hash = repl_control.function('sha256', f)
-        #     print (hash)
-
-
- 
+    def mpy_delete_strays(self, source, dest):
+        for f in self.repl_control.function('os.listdir', dest):
+            rname = "{}/{}".format(dest, f) # remote name
+            mode = self.repl_control.function('os.stat', rname)[0]
+            if mode & stat.S_IFREG: # is file
+                if not os.path.exists("{}{}".format(source, rname)):
+                    print ("Deleting file {}".format(rname))
+                    self.repl_control.function('os.remove', rname)
+            elif mode & stat.S_IFDIR: # is directory
+                if not os.path.exists("{}{}".format(source, rname)):
+                    print ("Walking into dir {}".format(rname))
+                    self.mpy_delete_strays(source, rname)
+                    print("Removing directory {}".format(rname))
+                    self.repl_control.function('os.rmdir', rname) 
+                           
     def upload_file(self):
         """Ask user for filenname and send its contents"""
         sys.stderr.write('\n--- File to upload: ')
@@ -921,7 +933,13 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
         "--sync-dir",
         help="folder to sync to MicroPython filesytem",
         default=None)
-
+    
+    group.add_argument(
+        '--delete',
+        action='store_true',
+        help='delete files present on MicroPython filesystem but not on host',
+        default=False)
+    
     group = parser.add_argument_group("data handling")
 
     group.add_argument(
@@ -1059,7 +1077,8 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
         echo=args.echo,
         eol=args.eol.lower(),
         filters=filters,
-        syncdir=syncdir)
+        syncdir=syncdir,
+        delete=args.delete)
     miniterm.exit_character = unichr(args.exit_char)
     miniterm.menu_character = unichr(args.menu_char)
     miniterm.raw = args.raw
