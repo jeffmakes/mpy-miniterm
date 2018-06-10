@@ -13,6 +13,8 @@ import os
 import sys
 import threading
 import subprocess
+import hashlib
+import binascii
 
 import serial
 from serial.tools.list_ports import comports
@@ -39,7 +41,19 @@ def key_description(character):
         return 'Ctrl+{:c}'.format(ord('@') + ascii_code)
     else:
         return repr(character)
-
+    
+def sha256(fn):
+    hash_sha256 = hashlib.sha256()
+    try:
+        f = open(fn, 'rb')
+        while True:
+            c = f.read(1024)
+            if not c:
+                break
+            hash_sha256.update(c)
+        return binascii.hexlify(hash_sha256.digest())
+    except (OSError, IOError):
+        return None
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 class ConsoleBase(object):
@@ -593,22 +607,26 @@ class Miniterm(object):
 
     def mpy_sync(self):
         helper_fns = """import uhashlib as hashlib
-import ubinascii
+import ubinascii as binascii
 def sha256(fn):
     hash_sha256 = hashlib.sha256()
-    with open(fn, 'rb') as f:
+    try:
+        f = open(fn, 'rb')
         while True:
-            c = f.read(512)
+            c = f.read(1024)
             if not c:
                 break
             hash_sha256.update(c)
-        return ubinascii.hexlify(hash_sha256.digest())"""
-# def fileExists(fn):
-#     try:
-#         os.stat(fn)
-#         return True;
-#     except OSError:
-#         return False"""
+        return binascii.hexlify(hash_sha256.digest())
+    except (OSError, IOError):
+        return None
+
+def fileExists(fn):
+    try:
+        os.stat(fn)
+        return True;
+    except OSError:
+        return False"""
 
         sys.stderr.write('\n--- Synchronising MicroPython code ---\n')
         self._stop_reader()
@@ -629,7 +647,8 @@ def sha256(fn):
                 self.mpy_copy_file(source, dest)
 
     def mpy_copy_file(self, source, dest):
-            print("copying %s => %s" % (repr(source), repr(dest)))
+            print("syncing %s => %s" % (repr(source), repr(dest)))
+            print("Hashes: src {} dst {}".format( sha256(source),  self.repl_control.function('sha256', dest)))
             return
             fh = open(source, "rb")
             rfh = self.repl_control.variable('open', '/'+dest, "wb")
