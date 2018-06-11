@@ -376,7 +376,7 @@ class Miniterm(object):
         self.tx_decoder = None
         self.syncdir = syncdir
         self.delete = delete
-        self.repl_control = replcontrol.ReplControl(debug=False)
+        self.repl_control = replcontrol.ReplControl(debug=False, reset=False)
         self.repl_control.port = serial_instance
 
 
