@@ -9,7 +9,7 @@ mpy-miniterm is based on  pySerial miniterm. There is an additional menu option 
 mpy-miniterm makes use of a slightly modified version of the ReplControl class from Nick Moore (part of https://github.com/nickzoic/mpy-utils)
 
 ## Usage
-Specify your folder of source code with --sync-dir command line option. Then with mpy-miniterm running and connected to your board, press Ctrl+T Ctrl+G to syncronise the code onto the device.
+Specify your local folder of source code with the --sync-dir command line option. Then with mpy-miniterm running and connected to your board, press Ctrl+T Ctrl+G to syncronise the code onto the MicroPython target device. After the code is synchronised, the REPL will be active again, and you can reset and run your new code by pressing CTRL-D as usual.
 
-If the --delete option is specified, files on your micropython board that aren't in your source folder will be automatically deleted from the device.
+If the --delete option is specified, files on your MicroPython board that aren't in your source folder will be automatically deleted from the device.
 
