@@ -677,9 +677,9 @@ def fileExists(fn):
                     print ("Deleting file {}".format(rname))
                     self.repl_control.function('os.remove', rname)
             elif mode & stat.S_IFDIR: # is directory
+                #print ("Walking into dir {}".format(rname))
+                self.mpy_delete_strays(source, rname)
                 if not os.path.exists("{}{}".format(source, rname)):
-                    print ("Walking into dir {}".format(rname))
-                    self.mpy_delete_strays(source, rname)
                     print("Removing directory {}".format(rname))
                     self.repl_control.function('os.rmdir', rname) 
                            
