@@ -15,7 +15,7 @@ If the --delete option is specified, files on your MicroPython board that aren't
 
 ## Dependencies
 
-* (https://pypi.org/project/pyserial/)[pyserial]
+* [https://pypi.org/project/pyserial/](pyserial)
 
 ## Example
 
@@ -44,6 +44,7 @@ $ mkdir src
 $ touch src/boot.py
 $ echo 'print("Hello world!")' > src/main.py
 $
+```
 
 #### Run mpy-miniterm with syncing, and deleting of files that are only on the MicroPython side.
 ```shell
