@@ -1010,6 +1010,12 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
 
     syncdir = args.sync_dir
 
+    # syncdir should always have a trailing slash to make sure path comparison
+    # in mpy_delete_strays() matches. Otherwise, it's possible to sync some
+    # changes and then immediately delete those files, which is useless.
+    if not syncdir.endswith("/"):
+        syncdir += "/"
+
     if args.menu_char == args.exit_char:
         parser.error('--exit-char can not be the same as --menu-char')
 
