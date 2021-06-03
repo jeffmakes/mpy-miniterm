@@ -7,7 +7,7 @@
 # MicroPython additions by Jeff Gough <mpy@jeffreygough.com>
 #
 # SPDX-License-Identifier:    BSD-3-Clause
-
+import platform
 import codecs
 import os
 import sys
@@ -653,6 +653,8 @@ def fileExists(fn):
                 self.mpy_copy_file(source, dest)
 
     def mpy_copy_file(self, source, dest):
+            if platform.system() is "Windows":
+                dest = dest.replace('\\', '/')
             if sha256(source) == self.repl_control.function('sha256', dest):
                 print("no change %s => %s" % (repr(source), repr(dest)))                
                 return
