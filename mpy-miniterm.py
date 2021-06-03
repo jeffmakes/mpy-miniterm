@@ -27,6 +27,7 @@ import replcontrol
 # pylint: disable=wrong-import-order,wrong-import-position
 
 codecs.register(lambda c: hexlify_codec.getregentry() if c == 'hexlify' else None)
+global_var = {"platform":platform.system()}
 
 try:
     raw_input
@@ -646,6 +647,8 @@ def fileExists(fn):
         
     def mpy_sync_files(self, files):
         for source, dest in files:
+            if  global_var.get('platform') == "Windows":
+                dest = dest.replace('\\', '/')
             if os.path.isdir(source):
                 self.repl_control.statement('os.mkdir', dest)
                 self.mpy_sync_files([ (os.path.join(source, x), os.path.join(dest, x)) for x in os.listdir(source) if not x.startswith(".") ])
@@ -653,8 +656,6 @@ def fileExists(fn):
                 self.mpy_copy_file(source, dest)
 
     def mpy_copy_file(self, source, dest):
-            if platform.system() is "Windows":
-                dest = dest.replace('\\', '/')
             if sha256(source) == self.repl_control.function('sha256', dest):
                 print("no change %s => %s" % (repr(source), repr(dest)))                
                 return
