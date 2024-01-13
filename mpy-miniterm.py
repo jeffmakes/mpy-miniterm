@@ -611,34 +611,10 @@ class Miniterm(object):
             sys.stderr.write('--- unknown menu character {} --\n'.format(key_description(c)))
 
     def mpy_sync(self):
-        helper_fns = """import uhashlib as hashlib
-import ubinascii as binascii
-def sha256(fn):
-    hash_sha256 = hashlib.sha256()
-    try:
-        f = open(fn, 'rb')
-        while True:
-            c = f.read(1024)
-            if not c:
-                break
-            hash_sha256.update(c)
-        return binascii.hexlify(hash_sha256.digest())
-    except (OSError, IOError):
-        return None
-
-def fileExists(fn):
-    try:
-        os.stat(fn)
-        return True;
-    except OSError:
-        return False"""
-
         sys.stderr.write('\n--- Synchronising MicroPython code ---\n')
         self._stop_reader()
         self.repl_control.initialize()
-        self.repl_control.command('import os')
-        self.repl_control.command(helper_fns)
-
+        self.repl_control.dump_from_file("helper_fns.py")
         self.mpy_sync_files([ (f, os.path.split(f)[1]) for f in [self.syncdir]] )
         if self.delete:
             self.mpy_delete_strays(self.syncdir, '')
@@ -656,20 +632,20 @@ def fileExists(fn):
                 self.mpy_copy_file(source, dest)
 
     def mpy_copy_file(self, source, dest):
-            if sha256(source) == self.repl_control.function('sha256', dest):
-                print("no change %s => %s" % (repr(source), repr(dest)))                
-                return
-            else:
-                print("copying   %s => %s" % (repr(source), repr(dest)))                
-                fh = open(source, "rb")
-                rfh = self.repl_control.variable('open', '/'+dest, "wb")
-                while True:
-                    s = fh.read(50)
-                    if len(s) == 0: break
-                    rfh.method('write', s)
-                    time.sleep(self.repl_control.delay/1000.0)
-                rfh.method('flush')
-                rfh.method('close')
+        if sha256(source) == self.repl_control.function('sha256', dest):
+            print("no change %s => %s" % (repr(source), repr(dest)))
+            return
+        else:
+            print("copying   %s => %s" % (repr(source), repr(dest)))
+            fh = open(source, "rb")
+            rfh = self.repl_control.variable('open', '/'+dest, "wb")
+            while True:
+                s = fh.read(50)
+                if len(s) == 0: break
+                rfh.method('write', s)
+                time.sleep(self.repl_control.delay/1000.0)
+            rfh.method('flush')
+            rfh.method('close')
 
     def mpy_delete_strays(self, source, dest):
         for f in self.repl_control.function('os.listdir', dest):
