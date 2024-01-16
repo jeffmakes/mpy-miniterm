@@ -2,6 +2,8 @@ import serial
 import string
 import atexit
 import time
+import sys
+import struct
 
 
 class ReplControl(object):
@@ -38,10 +40,11 @@ class ReplControl(object):
             resp = self.port.read_all()
             if resp.endswith(b"\r\n>"):
                 break
-            elif time.time() - start > 3:
+            elif time.time() - start > 1:
                 if self.debug:
-                    print("Forcefully breaking the boot.py")
-                self.port.write(b"\x03\x03")
+                    sys.stderr.write(f'\n--- retrying ---\n')
+                self.port.write(b"\x03\x03\x01\x04")
+                start = time.time()
             time.sleep(self.delay / 1000.0)
         self.port.flushInput()
 
@@ -70,6 +73,57 @@ class ReplControl(object):
                     return e
             else:
                 return None
+
+    def dump_from_file(self, filename):
+        # dump in the contents of a file using the raw REPL paste interface
+
+        with open(filename, 'r') as source:
+            content = source.read().encode("ASCII")
+
+            time.sleep(self.delay / 1000.0)
+            self.port.read_all() # clear old responses so that we can interpret control flow output later
+
+            # get into raw paste mode
+            self.port.write(b'\x05A\x01')
+            time.sleep(self.delay / 1000.0)
+
+            self.response(b'R\x01') # if this hangs, this device doesn't support the raw REPL paste interface
+
+            # Read initial header, with window size.
+            data = self.response(b'\x01')
+            window_size = struct.unpack("<H", data)[0]
+            window_remain = window_size
+
+            # Write out the content of the file.
+            i = 0
+            while i < len(content):
+                while window_remain == 0 or self.port.inWaiting():
+                    response = self.port.read(1)
+                    if response == b"\x01":
+                        # Device indicated that a new window of data can be sent.
+                        window_remain += window_size
+                    elif response == b"\x04":
+                        # Device indicated abrupt end.  Acknowledge it and finish.
+                        self.port.write(b"\x04")
+                        return
+                    else:
+                        raise Exception(response) # Unexpected response from device.
+
+                # Send out as much data as possible that fits within the allowed window.
+                b = content[i : min(i + window_remain, len(content))]
+                self.port.write(b)
+                window_remain -= len(b)
+                i += len(b)
+
+            # Indicate end of data.
+            self.port.write(b'\x04')
+            time.sleep(self.delay / 1000.0)
+            self.response(b"\x04")  # wait for device to acknowledge end of data
+            ret = self.response(b"\x04")  # any stdout output
+            err = self.response(b"\x04")  # any stderr output
+
+            return ret, err
+
 
     def statement(self, func, *args):
         return self.command(func + repr(tuple(args)))
